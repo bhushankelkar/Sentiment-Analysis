@@ -1,0 +1,13 @@
+Flask>=1.0.0
+cloudant==2.13.0
+dash==1.13.4
+dash-core-components==1.10.1
+dash-html-components==1.0.3
+dash-bootstrap-components==0.10.3
+dash-renderer==1.5.1
+dash-table==4.8.1
+plotly==4.1.0
+dash_table_experiments
+dash_auth
+gunicorn
+pandas==1.0.5
