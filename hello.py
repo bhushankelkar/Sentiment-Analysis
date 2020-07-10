@@ -1,8 +1,7 @@
-#from cloudant import Cloudant
+from cloudant import Cloudant #!!COMMENTED FROM BHUSHAN'S CODE!!
 from flask import Flask, render_template, request, jsonify
-import atexit
+import atexit #!!COMMENTED FROM BHUSHAN'S CODE!!
 import os
-import re
 import json
 import dash
 import plotly
@@ -11,117 +10,187 @@ import dash_html_components as html
 import dash_table
 from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
+import plotly.graph_objs as go #added
 import pandas as pd
-import plotly.graph_objs as go
-import sys
-#from app import app
-#from tabs import sidepanel, tab1, tab2
-#from database import transforms
+import plotly.io as pio
+import plotly.express as px
+import nltk
+import regex as re
+from plotly.subplots import make_subplots
 
-external_stylesheets = ['https://codepen.io/anon/pen/mardKv.css']
-theme =  {
-    'dark': True,
-    'detail': '#007439',
-    'primary': '#00EA64',
-    'secondary': '#6E6E6E',
-}
+app = dash.Dash(__name__)
 
-app = dash.Dash(__name__,external_stylesheets = [dbc.themes.BOOTSTRAP])
-server = app.server
-app.config.suppress_callback_exceptions = True
-'''
-db_name = 'mydb'
-client = None
-db = None
-
-if 'VCAP_SERVICES' in os.environ:
-    vcap = json.loads(os.getenv('VCAP_SERVICES'))
-    print('Found VCAP_SERVICES')
-    if 'cloudantNoSQLDB' in vcap:
-        creds = vcap['cloudantNoSQLDB'][0]['credentials']
-        user = creds['username']
-        password = creds['password']
-        url = 'https://' + creds['host']
-        client = Cloudant(user, password, url=url, connect=True)
-        db = client.create_database(db_name, throw_on_exists=False)
-elif "CLOUDANT_URL" in os.environ:
-    client = Cloudant(os.environ['CLOUDANT_USERNAME'], os.environ['CLOUDANT_PASSWORD'], url=os.environ['CLOUDANT_URL'], connect=True)
-    db = client.create_database(db_name, throw_on_exists=False)
-elif os.path.isfile('vcap-local.json'):
-    with open('vcap-local.json') as f:
-        vcap = json.load(f)
-        print('Found local VCAP_SERVICES')
-        creds = vcap['services']['cloudantNoSQLDB'][0]['credentials']
-        user = creds['username']
-        password = creds['password']
-        url = 'https://' + creds['host']
-        client = Cloudant(user, password, url=url, connect=True)
-        db = client.create_database(db_name, throw_on_exists=False)'''
-
-# On IBM Cloud Cloud Foundry, get the port number from the environment variable PORT
-# When running this app on the local machine, default the port to 8000
-port = int(os.getenv('PORT', 8000))
-
-#@app.route('/')
-#def root():
-#    return app.send_static_file('index.html')
-
-#4 Dataframes for 4 lockdown periods
 df1 = pd.read_csv('lock1.csv',encoding='latin')
 df2 = pd.read_csv('lock2.csv',encoding='latin')
 df3 = pd.read_csv('lock3.csv',encoding='latin')
 df4 = pd.read_csv('lock4.csv',encoding='latin')
 
 # Use this for hashtag extract
-'''
+port = int(os.getenv('PORT', 8000))
 def hashtag_extract(x):
     hashtags = []
+
     # Loop over the words in the tweet
     for i in x:
         ht = re.findall(r"#(\w+)", i)
+        ht=[hts.lower() for hts in ht]
+        #ht=map(str.lower,ht)
+
+
         hashtags.append(ht)
-
     return hashtags
-
-HT_regular = hashtag_extract(df['text'][df['labels'] == 1])
-
+#-------------------------Lockdown1------------------
+HT_regular = hashtag_extract(df1['text'][df1['labels'] == 0])
 # extracting hashtags from racist/sexist tweets
-HT_negative = hashtag_extract(df['text'][df['labels'] == 0])
-
+HT_negative = hashtag_extract(df1['text'][df1['labels'] == -1])
+HT_positive = hashtag_extract(df1['text'][df1['labels'] == 1])
 # unnesting list
 HT_regular = sum(HT_regular,[])
 HT_negative = sum(HT_negative,[])
-print(HT_regular,file=sys.stderr)
-print(HT_negative,file=sys.stderr)
-
-
+HT_positive = sum(HT_positive,[])
+#print(HT_regular,file=sys.stderr)
+#print(HT_negative,file=sys.stderr)
 #positive hashtags
-#a = nltk.FreqDist(HT_regular)
-#d = pd.DataFrame({'Hashtag': list(a.keys()),
-#                  'Count': list(a.values())})
+a = nltk.FreqDist(HT_regular)
+d = pd.DataFrame({'Hashtag': list(a.keys()),
+                  'Count': list(a.values())})
 # selecting top 10 most frequent hashtags     
-#d = d.nlargest(columns="Count", n = 10) 
+d = d.nlargest(columns="Count", n = 5) 
+d.head()
 #plt.figure(figsize=(22,10))
 #ax = sns.barplot(data=d, x= "Hashtag", y = "Count")
 #ax.set(ylabel = 'Count')
 #plt.show()
-
 #negative hastags funtion will come over here
-#b = nltk.FreqDist(HT_negative)
-#e = pd.DataFrame({'Hashtag': list(b.keys()), 'Count': list(b.values())})
+b = nltk.FreqDist(HT_negative)
+e = pd.DataFrame({'Hashtag': list(b.keys()), 'Count': list(b.values())})
 # selecting top 10 most frequent hashtags
-#e = e.nlargest(columns="Count", n = 10)   
+e = e.nlargest(columns="Count", n = 5)   
 #plt.figure(figsize=(16,5))
 #ax = sns.barplot(data=e, x= "Hashtag", y = "Count")
 #ax.set(ylabel = 'Count')
 #plt.show()'''
+g = nltk.FreqDist(HT_positive)
+h = pd.DataFrame({'Hashtag': list(g.keys()),
+                  'Count': list(g.values())})
+# selecting top 10 most frequent hashtags     
+h = h.nlargest(columns="Count", n = 5) 
+
+#-----------------------Lockdown2----------------------------
+HT_regular = hashtag_extract(df2['text'][df2['labels'] == 0])
+# extracting hashtags from racist/sexist tweets
+HT_negative = hashtag_extract(df2['text'][df2['labels'] == -1])
+HT_positive = hashtag_extract(df2['text'][df2['labels'] == 1])
+# unnesting list
+HT_regular = sum(HT_regular,[])
+HT_negative = sum(HT_negative,[])
+HT_positive = sum(HT_positive,[])
+#print(HT_regular,file=sys.stderr)
+#print(HT_negative,file=sys.stderr)
+#positive hashtags
+a2 = nltk.FreqDist(HT_regular)
+d2 = pd.DataFrame({'Hashtag': list(a2.keys()),
+                  'Count': list(a2.values())})
+# selecting top 10 most frequent hashtags     
+d2 = d2.nlargest(columns="Count", n = 5) 
+d2.head()
+#plt.figure(figsize=(22,10))
+#ax = sns.barplot(data=d, x= "Hashtag", y = "Count")
+#ax.set(ylabel = 'Count')
+#plt.show()
+#negative hastags funtion will come over here
+b2 = nltk.FreqDist(HT_negative)
+e2 = pd.DataFrame({'Hashtag': list(b2.keys()), 'Count': list(b2.values())})
+# selecting top 10 most frequent hashtags
+e2 = e2.nlargest(columns="Count", n = 5)   
+#plt.figure(figsize=(16,5))
+#ax = sns.barplot(data=e, x= "Hashtag", y = "Count")
+#ax.set(ylabel = 'Count')
+#plt.show()'''
+g2 = nltk.FreqDist(HT_positive)
+h2 = pd.DataFrame({'Hashtag': list(g2.keys()),
+                  'Count': list(g2.values())})
+# selecting top 10 most frequent hashtags     
+h2 = h2.nlargest(columns="Count", n = 5) 
+
+#---------------------Lockdown3---------------------
+HT_regular = hashtag_extract(df3['text'][df3['labels'] == 0])
+# extracting hashtags from racist/sexist tweets
+HT_negative = hashtag_extract(df3['text'][df3['labels'] == -1])
+HT_positive = hashtag_extract(df3['text'][df3['labels'] == 1])
+# unnesting list
+HT_regular = sum(HT_regular,[])
+HT_negative = sum(HT_negative,[])
+HT_positive = sum(HT_positive,[])
+#print(HT_regular,file=sys.stderr)
+#print(HT_negative,file=sys.stderr)
+#positive hashtags
+a3 = nltk.FreqDist(HT_regular)
+d3 = pd.DataFrame({'Hashtag': list(a3.keys()),
+                  'Count': list(a3.values())})
+# selecting top 10 most frequent hashtags     
+d3 = d3.nlargest(columns="Count", n = 5) 
+d3.head()
+#plt.figure(figsize=(22,10))
+#ax = sns.barplot(data=d, x= "Hashtag", y = "Count")
+#ax.set(ylabel = 'Count')
+#plt.show()
+#negative hastags funtion will come over here
+b3 = nltk.FreqDist(HT_negative)
+e3 = pd.DataFrame({'Hashtag': list(b3.keys()), 'Count': list(b3.values())})
+# selecting top 10 most frequent hashtags
+e3 = e3.nlargest(columns="Count", n = 5)   
+#plt.figure(figsize=(16,5))
+#ax = sns.barplot(data=e, x= "Hashtag", y = "Count")
+#ax.set(ylabel = 'Count')
+#plt.show()'''
+g3 = nltk.FreqDist(HT_positive)
+h3 = pd.DataFrame({'Hashtag': list(g3.keys()),
+                  'Count': list(g3.values())})
+# selecting top 10 most frequent hashtags     
+h3 = h3.nlargest(columns="Count", n = 5) 
+
+#-------------------------Lockdown4---------------------
+HT_regular = hashtag_extract(df4['text'][df4['labels'] == 0])
+# extracting hashtags from racist/sexist tweets
+HT_negative = hashtag_extract(df4['text'][df4['labels'] == -1])
+HT_positive = hashtag_extract(df4['text'][df4['labels'] == 1])
+# unnesting list
+HT_regular = sum(HT_regular,[])
+HT_negative = sum(HT_negative,[])
+HT_positive = sum(HT_positive,[])
+#print(HT_regular,file=sys.stderr)
+#print(HT_negative,file=sys.stderr)
+#positive hashtags
+a4 = nltk.FreqDist(HT_regular)
+d4 = pd.DataFrame({'Hashtag': list(a4.keys()),
+                  'Count': list(a4.values())})
+# selecting top 10 most frequent hashtags     
+d4 = d4.nlargest(columns="Count", n = 5) 
+d4.head()
+#plt.figure(figsize=(22,10))
+#ax = sns.barplot(data=d, x= "Hashtag", y = "Count")
+#ax.set(ylabel = 'Count')
+#plt.show()
+#negative hastags funtion will come over here
+b4 = nltk.FreqDist(HT_negative)
+e4 = pd.DataFrame({'Hashtag': list(b4.keys()), 'Count': list(b4.values())})
+# selecting top 10 most frequent hashtags
+e4 = e4.nlargest(columns="Count", n = 5)   
+#plt.figure(figsize=(16,5))
+#ax = sns.barplot(data=e, x= "Hashtag", y = "Count")
+#ax.set(ylabel = 'Count')
+#plt.show()'''
+g4 = nltk.FreqDist(HT_positive)
+h4 = pd.DataFrame({'Hashtag': list(g4.keys()),
+                  'Count': list(g4.values())})
+# selecting top 10 most frequent hashtags     
+h4 = h4.nlargest(columns="Count", n = 5) 
 
 #Use this for wordcount
 '''
 def word_count(sentence):
     return len(sentence.split())
-
-
 df['word count'] = df['text'].apply(word_count)
 x = df['word count'][df.labels == 1]
 y = df['word count'][df.labels == 0]
@@ -135,6 +204,7 @@ print(y,file=sys.stderr)
 #plt.legend(loc='upper right')
 #Till here'''
 
+
 app.layout =  html.Div([
     dcc.Tabs(id="tabs", value='tab-1', children=[
         dcc.Tab(label='Live Tweets', value='tab-1'),
@@ -143,170 +213,605 @@ app.layout =  html.Div([
         dcc.Tab(label='Lockdown 2.0', value='tab-4'),
         dcc.Tab(label='Lockdown 3.0', value='tab-5'),
         dcc.Tab(label='Lockdown 4.0', value='tab-6'),
-    ]),
+    ],
+      colors={
+                "border":"#eeeeee",
+                "primary":"#679b9b",
+                "background":"#2e9cc8",
+
+      }
+    ),
     html.Div(id='tabs-content')
 ])
+#------------------------------------------DONUT CHART----------------------------------------------------------
+count1=(df1['labels'][df1['labels']==1]).count()
+count1loc2=(df2['labels'][df2['labels']==1]).count()
+count1loc3=(df3['labels'][df3['labels']==1]).count()
+count1loc4=(df4['labels'][df4['labels']==1]).count()
+countneg=(df1['labels'][df1['labels']==-1]).count()
+countneg2=(df2['labels'][df2['labels']==-1]).count()
+countneg3=(df3['labels'][df3['labels']==-1]).count()
+countneg4=(df4['labels'][df4['labels']==-1]).count()
+count0=(df1['labels'][df1['labels']==0]).count()
+count0loc2=(df2['labels'][df2['labels']==0]).count()
+count0loc3=(df3['labels'][df3['labels']==0]).count()
+count0loc4=(df4['labels'][df4['labels']==0]).count()
+
+print(count1)
+colors=['#ff9595','royalblue','#80bdab']
+#--------------------------------------HASHTAGS SUBPLOTS---------------------------------------------------------
+#-----------------Lockdown1--------------------------------
+fig = make_subplots(rows=1, cols=3)
+
+fig.add_trace(
+    go.Bar(y=e.Hashtag,
+                x=e.Count,
+                name='# Negative',
+                textfont_color='white',
+                
+                orientation='h'),
+    row=1, col=1
+)
+
+fig.add_trace(
+    go.Bar(y=h.Hashtag,
+                x=h.Count,
+                name='# Positive',
+                textfont_color='white',
+                
+                orientation='h'),
+    row=1, col=2
+)
+
+fig.add_trace(
+    go.Bar(y=d.Hashtag,
+                x=d.Count,
+                name='# Neutral',
+                textfont_color='white',
+
+                orientation='h'),
+    row=1, col=3
+)
 
 
+fig.update_layout( 
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
+
+                      ),
+
+                paper_bgcolor ="#07031a",
+                plot_bgcolor="#07031a",
+                uniformtext_minsize=8, 
+                uniformtext_mode='hide',
+                title_text="Popular Hashtags"
+
+                )
+
+#----------------Lockdown2----------------------
+figloc2 = make_subplots(rows=1, cols=3)
+
+figloc2.add_trace(
+    go.Bar(y=e2.Hashtag,
+                x=e2.Count,
+                name='# Negative',
+                textfont_color='white',
+                
+                orientation='h'),
+    row=1, col=1
+)
+
+figloc2.add_trace(
+    go.Bar(y=h2.Hashtag,
+                x=h2.Count,
+                name='# Positive',
+                textfont_color='white',
+                
+                orientation='h'),
+    row=1, col=2
+)
+
+figloc2.add_trace(
+    go.Bar(y=d2.Hashtag,
+                x=d2.Count,
+                name='# Neutral',
+                textfont_color='white',
+
+                orientation='h'),
+    row=1, col=3
+)
+
+
+
+figloc2.update_layout( 
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
+
+                      ),
+
+                paper_bgcolor ="#07031a",
+                plot_bgcolor="#07031a",
+                uniformtext_minsize=8, 
+                uniformtext_mode='hide',
+                title_text="Popular Hashtags"
+
+                )
+
+#--------------------Lockdown3-------------------
+figloc3 = make_subplots(rows=1, cols=3)
+
+figloc3.add_trace(
+    go.Bar(y=e3.Hashtag,
+                x=e3.Count,
+                name='# Negative',
+                textfont_color='white',
+                
+                orientation='h'),
+    row=1, col=1
+)
+
+figloc3.add_trace(
+    go.Bar(y=h3.Hashtag,
+                x=h3.Count,
+                name='# Positive',
+                textfont_color='white',
+                
+                orientation='h'),
+    row=1, col=2
+)
+
+figloc3.add_trace(
+    go.Bar(y=d3.Hashtag,
+                x=d3.Count,
+                name='# Neutral',
+                textfont_color='white',
+
+                orientation='h'),
+    row=1, col=3
+)
+
+
+
+figloc3.update_layout( 
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
+
+                      ),
+
+                paper_bgcolor ="#07031a",
+                plot_bgcolor="#07031a",
+                uniformtext_minsize=8, 
+                uniformtext_mode='hide',
+                title_text="Popular Hashtags"
+
+                )
+
+#-------------Lockdown4-----------------------
+figloc4 = make_subplots(rows=1, cols=3)
+
+figloc4.add_trace(
+    go.Bar(y=e4.Hashtag,
+                x=e4.Count,
+                name='# Negative',
+                textfont_color='white',
+                
+                orientation='h'),
+    row=1, col=1
+)
+
+figloc4.add_trace(
+    go.Bar(y=h4.Hashtag,
+                x=h4.Count,
+                name='# Positive',
+                textfont_color='white',
+                
+                orientation='h'),
+    row=1, col=2
+)
+
+figloc4.add_trace(
+    go.Bar(y=d4.Hashtag,
+                x=d4.Count,
+                name='# Neutral',
+                textfont_color='white',
+
+                orientation='h'),
+    row=1, col=3
+)
+
+
+
+figloc4.update_layout( 
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
+
+                      ),
+
+                paper_bgcolor ="#07031a",
+                plot_bgcolor="#07031a",
+                uniformtext_minsize=8, 
+                uniformtext_mode='hide',
+                title_text="Popular Hashtags"
+
+                )
+
+
+#----------------------------------------WATSON TONE ANALYSER------------------------------------------------------------
+tone=pd.read_csv('lock1ToneAnalyser.csv')
+count_sad=tone['sadness'].sum()
+count_joy=tone['joy'].sum()
+count_confident=tone['confident'].sum()
+count_analytical=tone['analytical'].sum()
+count_tentative=tone['tentative'].sum()
+count_fear=tone['fear'].sum()
+count_anger=tone['anger'].sum()
+
+colors_emo=['#ff9595','#ff9595','#ff9595','#80bdab','royalblue','royalblue','royalblue']
+
+fig1 = go.Figure([go.Bar(
+             x=['😁','😎','🧐','😐','🥺','😨','😡'],
+             y=[count_joy,count_confident,count_analytical,count_tentative,count_sad,count_fear,count_anger],
+             hovertext=['Happy','Hopeful','Analytical','Neutral','Sad','Fearful','Angry'],
+             hoverinfo='text+y',
+             marker_color=colors_emo
+             
+
+    )])
+
+
+
+
+fig1.update_layout( title ="Bar Chart",
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
+
+                      ),
+
+                paper_bgcolor ="#07031a",
+                plot_bgcolor="#07031a",
+                uniformtext_minsize=8, 
+                uniformtext_mode='hide',
+                title_text="Tone Analysis",
+                #yaxis_tickformat='percent'
+                )
+fig1.update_xaxes(tickfont=dict(size=25))
+
+#--------------------Lockdown2----------------------
+tone=pd.read_csv('lock2ToneAnalyser.csv')
+count_sad=tone['sadness'].sum()
+count_joy=tone['joy'].sum()
+count_confident=tone['confident'].sum()
+count_analytical=tone['analytical'].sum()
+count_tentative=tone['tentative'].sum()
+count_fear=tone['fear'].sum()
+count_anger=tone['anger'].sum()
+
+colors_emo=['#ff9595','#ff9595','#ff9595','#80bdab','royalblue','royalblue','royalblue']
+
+fig1loc2 = go.Figure([go.Bar(
+             x=['😁','😎','🧐','😐','🥺','😨','😡'],
+             y=[count_joy,count_confident,count_analytical,count_tentative,count_sad,count_fear,count_anger],
+             hovertext=['Happy','Hopeful','Analytical','Neutral','Sad','Fearful','Angry'],
+             hoverinfo='text+y',
+             marker_color=colors_emo
+             
+
+    )])
+
+
+
+
+fig1loc2.update_layout( title ="Bar Chart",
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
+
+                      ),
+
+                paper_bgcolor ="#07031a",
+                plot_bgcolor="#07031a",
+                uniformtext_minsize=8, 
+                uniformtext_mode='hide',
+                title_text="Tone Analysis",
+                #yaxis_tickformat='percent'
+                )
+fig1loc2.update_xaxes(tickfont=dict(size=25))
+
+#--------------------Lockdown3----------------------
+tone=pd.read_csv('lock3ToneAnalyser.csv')
+count_sad=tone['sadness'].sum()
+count_joy=tone['joy'].sum()
+count_confident=tone['confident'].sum()
+count_analytical=tone['analytical'].sum()
+count_tentative=tone['tentative'].sum()
+count_fear=tone['fear'].sum()
+count_anger=tone['anger'].sum()
+
+colors_emo=['#ff9595','#ff9595','#ff9595','#80bdab','royalblue','royalblue','royalblue']
+
+fig1loc3 = go.Figure([go.Bar(
+             x=['😁','😎','🧐','😐','🥺','😨','😡'],
+             y=[count_joy,count_confident,count_analytical,count_tentative,count_sad,count_fear,count_anger],
+             hovertext=['Happy','Hopeful','Analytical','Neutral','Sad','Fearful','Angry'],
+             hoverinfo='text+y',
+             marker_color=colors_emo
+             
+
+    )])
+
+
+
+
+fig1loc3.update_layout( title ="Bar Chart",
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
+
+                      ),
+
+                paper_bgcolor ="#07031a",
+                plot_bgcolor="#07031a",
+                uniformtext_minsize=8, 
+                uniformtext_mode='hide',
+                title_text="Tone Analysis",
+                #yaxis_tickformat='percent'
+                )
+fig1loc3.update_xaxes(tickfont=dict(size=25))
+
+#----------------Lockdown4-------------------
+tone=pd.read_csv('lock4ToneAnalyser.csv')
+count_sad=tone['sadness'].sum()
+count_joy=tone['joy'].sum()
+count_confident=tone['confident'].sum()
+count_analytical=tone['analytical'].sum()
+count_tentative=tone['tentative'].sum()
+count_fear=tone['fear'].sum()
+count_anger=tone['anger'].sum()
+
+colors_emo=['#ff9595','#ff9595','#ff9595','#80bdab','royalblue','royalblue','royalblue']
+
+fig1loc4 = go.Figure([go.Bar(
+             x=['😁','😎','🧐','😐','🥺','😨','😡'],
+             y=[count_joy,count_confident,count_analytical,count_tentative,count_sad,count_fear,count_anger],
+             hovertext=['Happy','Hopeful','Analytical','Neutral','Sad','Fearful','Angry'],
+             hoverinfo='text+y',
+             marker_color=colors_emo
+             
+
+    )])
+
+
+
+
+fig1loc4.update_layout( title ="Bar Chart",
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
+
+                      ),
+
+                paper_bgcolor ="#07031a",
+                plot_bgcolor="#07031a",
+                uniformtext_minsize=8, 
+                uniformtext_mode='hide',
+                title_text="Tone Analysis",
+                #yaxis_tickformat='percent'
+                )
+fig1loc4.update_xaxes(tickfont=dict(size=25))
+
+
+#-------------------------------------------------LINE CHART-------------------------------------------------------------
+#-----------------Lockdown1-------------------------
+df_p1=pd.read_csv('df_p1.csv')
+df_neg1=pd.read_csv('df_neg1.csv')
+df_neu1=pd.read_csv('df_neu1.csv')
+fig2=go.Figure()
+    
+#fig2=tools.make_subplots(rows=1,cols=3,shared_xaxes=True,shared_yaxes=True)
+fig2.add_trace(go.Scatter(x=df_neg1.day,
+    y=df_neg1.neg,name='negatives'))
+fig2.add_trace(go.Scatter(x=df_p1['day'],
+    y=df_p1['pos'],name='positives'))
+
+fig2.add_trace(go.Scatter( x=df_neu1.day,
+    y=df_neu1.neu,name='neutrals'))
+
+fig2['layout'].update( title ="Line Chart",
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
+
+                      ),
+
+                paper_bgcolor ="#07031a",
+                plot_bgcolor="#07031a",
+                #uniformtext_minsize=8, 
+                #uniformtext_mode='hide',
+                title_text="Emotional Trends in Lockdown 1.0",
+                #yaxis_tickformat='percent'
+                )
+
+#-----------Lockdown2----------------
+df_p2=pd.read_csv('df_p2.csv')
+df_neg2=pd.read_csv('df_neg2.csv')
+df_neu2=pd.read_csv('df_neu2.csv')
+fig2loc2=go.Figure()
+    
+#fig2=tools.make_subplots(rows=1,cols=3,shared_xaxes=True,shared_yaxes=True)
+fig2loc2.add_trace(go.Scatter(x=df_neg2.day,
+    y=df_neg2.neg,name='negatives'))
+fig2loc2.add_trace(go.Scatter(x=df_p2['day'],
+    y=df_p2['pos'],name='positives'))
+
+fig2loc2.add_trace(go.Scatter( x=df_neu2.day,
+    y=df_neu2.neu,name='neutrals'))
+
+fig2loc2['layout'].update( title ="Line Chart",
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
+
+                      ),
+
+                paper_bgcolor ="#07031a",
+                plot_bgcolor="#07031a",
+                #uniformtext_minsize=8, 
+                #uniformtext_mode='hide',
+                title_text="Emotional Trends in Lockdown 1.0",
+                #yaxis_tickformat='percent'
+                )
+
+#----------------Lockdown3------------------------
+df_p3=pd.read_csv('df_p3.csv')
+df_neg3=pd.read_csv('df_neg3.csv')
+df_neu3=pd.read_csv('df_neu3.csv')
+fig2loc3=go.Figure()
+    
+#fig2=tools.make_subplots(rows=1,cols=3,shared_xaxes=True,shared_yaxes=True)
+fig2loc3.add_trace(go.Scatter(x=df_neg3.day,
+    y=df_neg3.neg,name='negatives'))
+fig2loc3.add_trace(go.Scatter(x=df_p3['day'],
+    y=df_p3['pos'],name='positives'))
+
+fig2loc3.add_trace(go.Scatter( x=df_neu3.day,
+    y=df_neu3.neu,name='neutrals'))
+
+fig2loc3['layout'].update( title ="Line Chart",
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
+
+                      ),
+
+                paper_bgcolor ="#07031a",
+                plot_bgcolor="#07031a",
+                #uniformtext_minsize=8, 
+                #uniformtext_mode='hide',
+                title_text="Emotional Trends in Lockdown 1.0",
+                #yaxis_tickformat='percent'
+                )
+
+#------------Lockdown4-----------
+df_p4=pd.read_csv('df_p4.csv')
+df_neg4=pd.read_csv('df_neg4.csv')
+df_neu4=pd.read_csv('df_neu4.csv')
+fig2loc4=go.Figure()
+    
+#fig2=tools.make_subplots(rows=1,cols=3,shared_xaxes=True,shared_yaxes=True)
+fig2loc4.add_trace(go.Scatter(x=df_neg4.day,
+    y=df_neg4.neg,name='negatives'))
+fig2loc4.add_trace(go.Scatter(x=df_p4['day'],
+    y=df_p4['pos'],name='positives'))
+
+fig2loc4.add_trace(go.Scatter( x=df_neu4.day,
+    y=df_neu4.neu,name='neutrals'))
+
+fig2loc4['layout'].update( title ="Line Chart",
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
+
+                      ),
+
+                paper_bgcolor ="#07031a",
+                plot_bgcolor="#07031a",
+                #uniformtext_minsize=8, 
+                #uniformtext_mode='hide',
+                title_text="Emotional Trends in Lockdown 1.0",
+                #yaxis_tickformat='percent'
+                )
+
+#fig2.update_xaxes(tickfont=dict(size=5))
+#-----------------------------------------------------------------------------------------------------------
 @app.callback(Output('tabs-content', 'children'),
               [Input('tabs', 'value')])
 def render_content(tab):
     if tab == 'tab-1':
        return html.Div([
-        html.Div([
-        dcc.Graph(
-            id="scatter_chart",
-            figure={
-            'data':[
-            go.Scatter(
-                x=df1.text,
-                y=df1.labels,
-                mode='markers'
-                
-
-                )
-
-            ],
-            'layout':go.Layout(
-                title ="Scatterplot",
-                xaxis = {'title': 'Tweet'},
-                yaxis = {'title': 'label'},
-                
         
-
-                )
-            }
-
-
-            )
-
-
-        ],style={'width':'33.33%','display':'inline-block','padding':'0 0 0 20'}),
-        html.Div([
-        dcc.Graph(
+html.Div([
+            dcc.Graph(
             id="pie_chart",
-            figure={
+            figure=
+         {
             'data':[
             go.Pie(
                 labels=['positives','negatives','neutrals'],
-                values=[500,460,620],
+                hole=.8,
+
+                values=[count1,countneg,count0],
                 name="Sentiment Analysis",
                 hoverinfo='label+percent',
-                textinfo='value'
-                
-
-                )
-
-            ],
+                textinfo='label+percent',
+                insidetextorientation='radial',
+                textfont_color='white',
+                marker=dict(colors=colors))],
             'layout':go.Layout(
-                title ="Pie Chart",
-                
-                
-        
+                title ="Emotion Distribution",
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
 
-                )
-            }
+                      ),
 
-
-            )
-
-
-        ],style={'width':'33.33%','display':'inline-block','padding':'0 0 0 20'}),
-
-        html.Div([
-        dcc.Graph(
-            id="pie_chart",
-            figure={
-            'data':[
-            go.Pie(
-                labels=['positives','negatives','neutrals'],
-                values=[500,460,620],
-                name="Sentiment Analysis",
-                hoverinfo='label+percent',
-                textinfo='value'
-                
-
-                )
-
-            ],
-            'layout':go.Layout(
-                title ="Pie Chart",
-                
-                
-        
-
-                )
-            }
+                paper_bgcolor ="#07031a"
+                )})]
+            ,style={'width':'50%','display':'inline-block','padding':'0 0 0 20'}),
 
 
-            )
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=fig1,
+         )]
+            ,style={'width':'50%','display':'inline-block','padding':'0 0 0 20'}),
+
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=fig,
+         )]
+            ,style={'display':'block','padding':'0 0 0 20'}),
+
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=fig2,
+         )]
+            ,style={'display':'block','padding':'0 0 0 20'}),
 
 
-        ],style={'width':'33.33%','display':'inline-block','padding':'0 0 0 20'}),
+html.Div([ 
+        html.Img(src=app.get_asset_url('lock1Word1.jpeg')),
+        html.Img(src=app.get_asset_url('lock1Word-1.jpeg')) 
 
-        html.Div([
-        dcc.Graph(
-            id="pie_chart",
-            figure={
-            'data':[
-            go.Pie(
-                labels=['positives','negatives','neutrals'],
-                values=[500,460,620],
-                name="Sentiment Analysis",
-                hoverinfo='label+percent',
-                textinfo='value'
-                
+         ]
 
-                )
-
-            ],
-            'layout':go.Layout(
-                title ="Pie Chart",
-                
-                
-        
-
-                )
-            }
+        ,style={'width':'100%','display':'block','padding':'0 0 0 50'}),
 
 
-            )
 
 
-        ],style={'width':'33.33%','display':'inline-block','padding':'0 0 0 20'}),
 
-        html.Div([
-        dcc.Graph(
-            id="pie_chart",
-            figure={
-            'data':[
-            go.Pie(
-                labels=['positives','negatives','neutrals'],
-                values=[500,460,620],
-                name="Sentiment Analysis",
-                hoverinfo='label+percent',
-                textinfo='value'
-                
-
-                )
-
-            ],
-            'layout':go.Layout(
-                title ="Pie Chart",
-                
-                
-        
-
-                )
-            }
-
-
-            )
-
-
-        ],style={'width':'33.33%','display':'inline-block','padding':'0 0 0 20'}),
-
-        ])
+        ],style={'background':'#25274d'})
 
         
     elif tab == 'tab-2':
@@ -337,150 +842,286 @@ def render_content(tab):
         ])
     elif tab == 'tab-3':
        return html.Div([
-        dcc.Graph(
-            id="scatter_chart",
-            figure={
+        
+html.Div([
+            dcc.Graph(
+            id="pie_chart",
+            figure=
+         {
             'data':[
-            go.Scatter(
-                x=df1.text,
-                y=df1.labels,
-                mode='markers'
-                )
+            go.Pie(
+                labels=['positives','negatives','neutrals'],
+                hole=.8,
 
-            ],
+                values=[count1,countneg,count0],
+                name="Sentiment Analysis",
+                hoverinfo='label+percent',
+                textinfo='label+percent',
+                insidetextorientation='radial',
+                textfont_color='white',
+                marker=dict(colors=colors))],
             'layout':go.Layout(
-                title ="Scatterplot",
-                xaxis = {'title': 'Tweet'},
-                yaxis = {'title': 'label'}
+                title ="Emotion Distribution",
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
 
-                )
-            }
+                      ),
+
+                paper_bgcolor ="#07031a"
+                )})]
+            ,style={'width':'50%','display':'inline-block','padding':'0 0 0 20'}),
 
 
-            )
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=fig1,
+         )]
+            ,style={'width':'50%','display':'inline-block','padding':'0 0 0 20'}),
+
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=fig,
+         )]
+            ,style={'display':'block','padding':'0 0 0 20'}),
+
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=fig2,
+         )]
+            ,style={'display':'block','padding':'0 0 0 20'}),
 
 
-        ])
+html.Div([
+        html.Img(src=app.get_asset_url('lock1neg.png')),
+        html.Img(src=app.get_asset_url('lock1pos.png')) 
+
+         ]
+
+        ,style={'width':'100%','display':'block','padding':'0 0 0 20'}),
+
+
+
+
+
+        ],style={'background':'#25274d'})
+
+        
     elif tab == 'tab-4':
        return html.Div([
-        dcc.Graph(
-            id="scatter_chart",
-            figure={
+        
+html.Div([
+            dcc.Graph(
+            id="pie_chart",
+            figure=
+         {
             'data':[
-            go.Scatter(
-                x=df2.text,
-                y=df2.labels,
-                mode='markers'
-                )
+            go.Pie(
+                labels=['positives','negatives','neutrals'],
+                hole=.8,
 
-            ],
+                values=[count1loc2,countneg2,count0loc2],
+                name="Sentiment Analysis",
+                hoverinfo='label+percent',
+                textinfo='label+percent',
+                insidetextorientation='radial',
+                textfont_color='white',
+                marker=dict(colors=colors))],
             'layout':go.Layout(
-                title ="Scatterplot",
-                xaxis = {'title': 'Tweet'},
-                yaxis = {'title': 'label'}
+                title ="Emotion Distribution",
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
 
-                )
-            }
+                      ),
+
+                paper_bgcolor ="#07031a"
+                )})]
+            ,style={'width':'50%','display':'inline-block','padding':'0 0 0 20'}),
 
 
-            )
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=fig1loc2,
+         )]
+            ,style={'width':'50%','display':'inline-block','padding':'0 0 0 20'}),
+
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=figloc2,
+         )]
+            ,style={'display':'block','padding':'0 0 0 20'}),
+
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=fig2loc2,
+         )]
+            ,style={'display':'block','padding':'0 0 0 20'}),
 
 
-        ])
+html.Div([ 
+        html.Img(src=app.get_asset_url('lock2neg.png')),
+        html.Img(src=app.get_asset_url('lock2pos.png')) 
+
+         ]
+
+        ,style={'width':'100%','display':'block','padding':'0 0 0 50'}),
+
+
+
+
+
+        ],style={'background':'#25274d'})
+
+        
     elif tab == 'tab-5':
        return html.Div([
-        dcc.Graph(
-            id="scatter_chart",
-            figure={
+        
+html.Div([
+            dcc.Graph(
+            id="pie_chart",
+            figure=
+         {
             'data':[
-            go.Scatter(
-                x=df3.text,
-                y=df3.labels,
-                mode='markers'
-                )
+            go.Pie(
+                labels=['positives','negatives','neutrals'],
+                hole=.8,
 
-            ],
+                values=[count1loc3,countneg3,count0loc3],
+                name="Sentiment Analysis",
+                hoverinfo='label+percent',
+                textinfo='label+percent',
+                insidetextorientation='radial',
+                textfont_color='white',
+                marker=dict(colors=colors))],
             'layout':go.Layout(
-                title ="Scatterplot",
-                xaxis = {'title': 'Tweet'},
-                yaxis = {'title': 'label'}
+                title ="Emotion Distribution",
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
 
-                )
-            }
+                      ),
+
+                paper_bgcolor ="#07031a"
+                )})]
+            ,style={'width':'50%','display':'inline-block','padding':'0 0 0 20'}),
 
 
-            )
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=fig1loc3,
+         )]
+            ,style={'width':'50%','display':'inline-block','padding':'0 0 0 20'}),
+
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=figloc3,
+         )]
+            ,style={'display':'block','padding':'0 0 0 20'}),
+
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=fig2loc3,
+         )]
+            ,style={'display':'block','padding':'0 0 0 20'}),
 
 
-        ])
+html.Div([ 
+        html.Img(src=app.get_asset_url('lockneg3.png')),
+        html.Img(src=app.get_asset_url('lockpos3.png')) 
+
+         ]
+
+        ,style={'width':'100%','display':'block','padding':'0 0 0 50'}),
+
+
+
+
+
+        ],style={'background':'#25274d'})
+
+        
     elif tab == 'tab-6':
        return html.Div([
-        dcc.Graph(
-            id="scatter_chart",
-            figure={
+        
+html.Div([
+            dcc.Graph(
+            id="pie_chart",
+            figure=
+         {
             'data':[
-            go.Scatter(
-                x=df4.text,
-                y=df4.labels,
-                mode='markers'
-                )
+            go.Pie(
+                labels=['positives','negatives','neutrals'],
+                hole=.8,
 
-            ],
+                values=[count1loc4,countneg4,count0loc4],
+                name="Sentiment Analysis",
+                hoverinfo='label+percent',
+                textinfo='label+percent',
+                insidetextorientation='radial',
+                textfont_color='white',
+                marker=dict(colors=colors))],
             'layout':go.Layout(
-                title ="Scatterplot",
-                xaxis = {'title': 'Tweet'},
-                yaxis = {'title': 'label'}
+                title ="Emotion Distribution",
+                font=dict(
+                    family="Courier New,monospace",
+                    size=14,
+                    color='white'
 
-                )
-            }
+                      ),
+
+                paper_bgcolor ="#07031a"
+                )})]
+            ,style={'width':'50%','display':'inline-block','padding':'0 0 0 20'}),
 
 
-            )
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=fig1loc4,
+         )]
+            ,style={'width':'50%','display':'inline-block','padding':'0 0 0 20'}),
+
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=figloc4,
+         )]
+            ,style={'display':'block','padding':'0 0 0 20'}),
+
+html.Div([
+            dcc.Graph(
+            id="bar_chart",
+            figure=fig2loc4,
+         )]
+            ,style={'display':'block','padding':'0 0 0 20'}),
 
 
-        ])
-# /* Endpoint to greet and add a new visitor to database.
-# * Send a POST request to localhost:8000/api/visitors with body
-# * {
-# *     "name": "Bob"
-# * }
-# */
-'''
-@app.route('/api/visitors', methods=['GET'])
-def get_visitor():
-    if client:
-        return jsonify(list(map(lambda doc: doc['name'], db)))
-    else:
-        print('No database')
-        return jsonify([])'''
+html.Div([ 
+        html.Img(src=app.get_asset_url('lock4neg.png')),
+        html.Img(src=app.get_asset_url('lock4pos.png')) 
 
-# /**
-#  * Endpoint to get a JSON array of all the visitors in the database
-#  * REST API example:
-#  * <code>
-#  * GET http://localhost:8000/api/visitors
-#  * </code>
-#  *
-#  * Response:
-#  * [ "Bob", "Jane" ]
-#  * @return An array of all the visitor names
-#  */
-'''
-@app.route('/api/visitors', methods=['POST'])
-def put_visitor():
-    user = request.json['name']
-    data = {'name':user}
-    if client:
-        my_document = db.create_document(data)
-        data['_id'] = my_document['_id']
-        return jsonify(data)
-    else:
-        print('No database')
-        return jsonify(data)
+         ]
 
-@atexit.register
-def shutdown():
-    if client:
-        client.disconnect()'''
+        ,style={'width':'100%','display':'block','padding':'0 0 0 50'}),
+
+
+
+
+
+        ],style={'background':'#25274d'})
+
 if __name__ == '__main__':
-    app.run_server(host='0.0.0.0', port=port, debug=True)
+    app.run_server(host='0.0.0.0', port=port,debug=True)

@@ -2,4 +2,4 @@
 applications:
  - name: Twitter_Sentiment
    random-route: true
-   memory: 256M
+   memory: 1024M
