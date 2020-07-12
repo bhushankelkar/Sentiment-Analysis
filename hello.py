@@ -1,6 +1,7 @@
 #from cloudant import Cloudant #!!COMMENTED FROM BHUSHAN'S CODE!!
 from flask import Flask, render_template, request, jsonify
 #import atexit #!!COMMENTED FROM BHUSHAN'S CODE!!
+import time
 import os
 import json
 import dash
@@ -29,14 +30,198 @@ from nltk.tokenize import word_tokenize
 import pickle
 import string
 import joblib
+from nltk.corpus import stopwords
+lemma = WordNetLemmatizer()
 
 app = dash.Dash(__name__)
 #Live streaming
+vectorizer = pickle.load(open("vector.pickel", "rb"))
+w = pickle.load(open('train', 'rb'))
+x_train=w['x_train']
+vectorizer.fit(x_train)
+print(vectorizer)
+print(len(vectorizer.get_feature_names()))
+filename = 'logR.sav'
+
+# filename='logR.sav'
+loaded_model = joblib.load(open(filename, 'rb'))
+def calctime(a):
+    return time.time() - a
+
+
+positive = 0
+negative = 0
+neutral = 0
+compound=0
+
+count = 0
+initime = time.time()
+
+ps = PorterStemmer()
+wnl = WordNetLemmatizer()
+
+ckey = 'WnyAgUaacX1YheRSJqwMhhZgR'
+csecret = 'LzHg7GuAfJNIsHRpRXEk72TaEjcG5RL9yl85c0rbI1V1pg6rHQ'
+atoken = "1125091796046843905-DNeIxEe9RNwlwzZZXwXEW3VJFlv7Az"
+asecret = "n3Yc9GzA2Saa6LNPZ5465WdQNj06G6hBrqcWnpwkc4jCb"
+
+js=pd.DataFrame(columns=['text','labels'])
+tl=[]
+class listener(StreamListener):
+
+    def on_data(self, data):
+        global initime
+        global tl
+        all_data = json.loads(data)
+        tweet = all_data["text"]
+
+        # username=all_data["user"]["screen_name"]
+        # tweet = " ".join(re.findall("[a-zA-Z]+", tweet))
+        #
+
+        # print(tweet)
+        global ps
+        global wnl
+
+        sequencePattern = r"(.)\1\1+"
+        seqReplacePattern = r"\1\1"
+        tweets = " ".join(filter(lambda x: x[0] != '@', tweet.split()))
+        tweets = re.sub(r'([^a-zA-Z0-9])', ' ', tweets)
+        tweets = re.sub(r'[^\w\s]', '', tweets)
+        #     tweets=re.sub('[\s][a-z]{1,3}[\s]',' ',tweets)
+        #     tweets=re.sub('^[a-z]{1,3}[\s]',' ',tweets)
+        tweets = re.sub(r'[0-9_]', '', tweets)
+        tweets = re.sub(r'^https?:\/\/.*[\r\n]*', '', tweets)
+        tweets = re.sub(r"http\S+", "", tweets)
+        tweets = tweets.lower()
+        tweets = re.sub(sequencePattern, seqReplacePattern, tweets)
+        #     print(tweets)
+        tweets = tweets.split()
+        tweets = [word for word in tweets if not word in set(stopwords.words('english'))]
+        tweets = [lemma.lemmatize(word) for word in tweets]
+
+        tweets = " ".join(tweets)
+
+        #     print(tweets[0])
+        #     tweets=tweets.split(" ")
+
+        tweets = word_tokenize(tweets)
+        #     print(tweets)
+        t = []
+        for j in tweets:
+            #
+            t.append(ps.stem(j))
+            #            t.append(wnl.lemmatize(j))
+            t.append(" ")
+
+        tweets = " ".join(t)
+        #     tweets = tweets.split()
+        tweets = tweets.replace('ing', '')
+        tweets = tweets.replace('pic', '')
+        tweets = tweets.replace('com', '')
+
+        # l = vectorizer.transform(tweets).toarray()
+        # tweets='fuck corona'
+        k = pd.Series(tweets)
+        print(k)
+
+        l = vectorizer.transform(k).toarray()
+        # print(l)
+        m=loaded_model.predict(l)
+        print(m[0])
+        t = int(calctime(initime))
+        # blob = TextBlob(tweet.strip())
+        print(t)
+        # print(loaded_model)
+        # print(vectorizer)
+        tl.append({'tweet':tweet,'label':m[0]})
+        global positive
+        global negative
+        global neutral
+        global count
+        global compound
+        count = count + 1
+        # senti = 0
+        # for sen in blob.sentences:
+        #     senti = senti + sen.sentiment.polarity
+        #     if sen.sentiment.polarity >= 0:
+        #         positive = positive + sen.sentiment.polarity
+        #     else:
+        #         negative = negative + sen.sentiment.polarity
+        # compound = compound + senti
+        # print
+        # count
+        # print
+        if m[0]==1:
+            positive=positive+1
+        elif m[0]==-1:
+            negative=negative+1
+        else:
+            neutral=neutral+1
+
+        print("pos ",positive)
+        print("neg",negative)
+        print("neu",neutral)
+        k={"pos":positive,"neg":negative,"time":t,"details":tl}
+        s=pd.DataFrame(k)
+        try:
+            s.to_json('count.json')
+            tl=[]
+        except:
+            print("couldnt")
+        # u=positive+negative+neutral
+        sen=[positive,negative,neutral]
+        # print(sen)
+        xsen=['positive','negative','neutral','time']
+        tweets.strip()
+        # print
+        # senti
+        # print
+        # t
+        # print
+        # str(positive) + ' ' + str(negative) + ' ' + str(neutral)
+        # print(len(t))
+        # plt.axis([ 0, 70,0,220])
+        # plt.xlabel('Time')
+        # plt.ylabel('Sentiment')
+        # plt.plot([t],[positive],'go',[t] ,[negative],'ro',[t],[neutral],'bo')
+        # plt.plot([t],[u])
+        width = 0.35
+        # plt.bar(xsen,sen,width = 0.35,color='r')
+
+        # plt.show()
+        # plt.pause(0.0001)
+        # temp={'text':tweet,'labels':m}
+        # js=pd.DataFrame(temp)
+        #
+        # js.append(temp,ignore_index=True)
+        # try:
+        #     print(js)
+        #     js.to_json('obj.json')
+        # except:
+        #     print("cannot")
+        #     pass
+        if count == 200:
+            return False
+
+        else:
+            return True
+
+    def on_error(self, status):
+        print(status)
+
+
+auth = OAuthHandler(ckey, csecret)
+auth.set_access_token(atoken, asecret)
+
+twitterStream = Stream(auth, listener(count),lang='en',geocode="22.3511148,78.6677428,1km")
+twitterStream.filter(track=["#IndiaFightsCorona","covid19 india","corona india","#covid19#india","corona warriors","#cluelessbjp"])
+
 pos = 0
 neg = 0
 time = 0
 vectorizer = pickle.load(open("vector.pickel", "rb"))
-w = pickle.load(open('x_train', 'rb'))
+w = pickle.load(open('train', 'rb'))
 x_train=w['x_train']
 vectorizer.fit(x_train)
 print(vectorizer)
@@ -84,10 +269,6 @@ wnl = WordNetLemmatizer()
 #     # return content
 cal={'val':['positive','negative'],'count':[positive,negative]}
 cal=pd.DataFrame(cal)
-
-
-
-
 
 df1 = pd.read_csv('lock1.csv',encoding='latin')
 df2 = pd.read_csv('lock2.csv',encoding='latin')
@@ -299,16 +480,10 @@ print(y,file=sys.stderr)
 
 app.layout =  html.Div([
     dcc.Tabs(id="tabs", value='tab-1', children=[
-    dcc.Tab(label='Live Tweets', value='tab-1',children=[
-            html.Div([
-           dcc.Graph(id='trend2'),
-            dcc.Interval(
+    dcc.Tab(label='Live Tweets', value='tab-1',children=[dcc.Interval(
         id='interval-component-slow',
         interval=1 * 9000,  # in milliseconds
-        n_intervals=0
-    )
-], style={'padding': '20px'})
-        ]),
+        n_intervals=0)]),
         dcc.Tab(label='Lockdown 1.0', value='tab-2'),
         dcc.Tab(label='Lockdown 2.0', value='tab-3'),
         dcc.Tab(label='Lockdown 3.0', value='tab-4'),
@@ -1122,49 +1297,58 @@ figoverall.update_layout( title ="Bar Chart",
 
                 )
 #----------------------------------------------------------------------------------------------
-@app.callback( [Output('tabs-content', 'children'),
-                Output('trend2', 'children')],
+@app.callback( Output('tabs-content', 'children'),
             [Input('tabs', 'value'),
               Input('date-dropdown', 'value'),
               Input('interval-component-slow','n_intervals')])
 def render_content(tab,sel_option,n):
     sel = dates[dates['day']==sel_option]
-    print(sel)
-    if tab == 'tab-1':
-        global positive
-        global negative
-        content='hi'
+    global positive
+    global negative
+    content='hi'
         # print(cal)
-        try:
+    try:
             df=pd.read_json('count.json')
             print(df['details'][0]['tweet'])
-        except:
+    except:
             print("cant")
-        global pos
-        global neg
-        global time
-        global tf2
-        positive=df['pos'][0]
+    global pos
+    global neg
+    global time
+    global tf2
+    positive=df['pos'][0]
 
-        negative = df['neg'][0]
-        cal.loc[cal['val']=='positive','count']=positive
-        cal.loc[cal['val']=='negative','count']=negative
-        time=df["time"][0]
-        temp={'pos':positive,'neg':negative,'time':time,'text':df['details'][0]}
+    negative = df['neg'][0]
+    cal.loc[cal['val']=='positive','count']=positive
+    cal.loc[cal['val']=='negative','count']=negative
+    time=df["time"][0]
+    temp={'pos':positive,'neg':negative,'time':time,'text':df['details'][0]}
         # print(temp)
-        temp=pd.DataFrame(temp,columns=['pos','neg','time','details'],index=[[1]])
+    temp=pd.DataFrame(temp,columns=['pos','neg','time','details'],index=[[1]])
         # print(temp)
-        tf2=pd.concat([tf2,temp],ignore_index=True)
-        tf2.drop_duplicates(subset=['details'],inplace=True)
-        print(len(tf2))
-        x=list([20,30,204,309])
-        y=list([90,345,234,234])
-        fig=px.bar(cal,x='val',y='count')
+    tf2=pd.concat([tf2,temp],ignore_index=True)
+    tf2.drop_duplicates(subset=['details'],inplace=True)
+    print(len(tf2))
+    x=list([20,30,204,309])
+    y=list([90,345,234,234])
+    figlive=px.bar(cal,x='val',y='count')
         # fig2=px.scatter(tf,x='time',y=[['pos','neg']],color=[['pos','neg']])
-        fig2=px.scatter(tf2,x='time',y=['neg','pos'])
+    figlive2=px.scatter(tf2,x='time',y=['neg','pos'])
+    if tab == 'tab-1':
+       return html.Div([
+
+            html.Div([
+           dcc.Graph(id='trend2',
+            figure=figlive),
+            
+    ], style={'display':'block','padding':'0 0 0 20'}),
+            html.Div([
+           dcc.Graph(id='trend2',
+            figure=figlive2),
+], style={'display':'block','padding':'0 0 0 20'})
+
+            ])
         
-        return [fig2],
-       
     elif tab == 'tab-6':
        return html.Div([
       html.Div([
