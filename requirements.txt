@@ -12,3 +12,6 @@ gunicorn
 pandas==1.0.5
 nltk
 regex
+textblob
+scikit-learn
+tweepy
