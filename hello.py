@@ -35,6 +35,129 @@ lemma = WordNetLemmatizer()
 
 app = dash.Dash(__name__)
 
+vectorizer = pickle.load(open("vector.pickel", "rb"))
+w = pickle.load(open('train', 'rb'))
+x_train=w['x_train']
+vectorizer.fit(x_train)
+print(vectorizer)
+print(len(vectorizer.get_feature_names()))
+filename = 'logR.sav'
+
+# filename='logR.sav'
+loaded_model = joblib.load(open(filename, 'rb'))
+def calctime(a):
+    return time.time() - a
+
+
+positive = 0
+negative = 0
+neutral = 0
+compound=0
+
+count = 0
+
+ps = PorterStemmer()
+wnl = WordNetLemmatizer()
+
+
+ckey = 'WnyAgUaacX1YheRSJqwMhhZgR'
+csecret = 'LzHg7GuAfJNIsHRpRXEk72TaEjcG5RL9yl85c0rbI1V1pg6rHQ'
+atoken = "1125091796046843905-DNeIxEe9RNwlwzZZXwXEW3VJFlv7Az"
+asecret = "n3Yc9GzA2Saa6LNPZ5465WdQNj06G6hBrqcWnpwkc4jCb"
+
+js=pd.DataFrame(columns=['text','labels'])
+tl=[]
+class listener(StreamListener):
+
+    def on_data(self, data):
+        global initime
+        global tl
+        all_data = json.loads(data)
+        tweet = all_data["text"]
+        
+        global ps
+        global wnl
+
+        sequencePattern = r"(.)\1\1+"
+        seqReplacePattern = r"\1\1"
+        tweets = " ".join(filter(lambda x: x[0] != '@', tweet.split()))
+        tweets = re.sub(r'([^a-zA-Z0-9])', ' ', tweets)
+        tweets = re.sub(r'[^\w\s]', '', tweets)
+        tweets = re.sub(r'[0-9_]', '', tweets)
+        tweets = re.sub(r'^https?:\/\/.*[\r\n]*', '', tweets)
+        tweets = re.sub(r"http\S+", "", tweets)
+        tweets = tweets.lower()
+        tweets = re.sub(sequencePattern, seqReplacePattern, tweets)
+        tweets = tweets.split()
+        tweets = [word for word in tweets if not word in set(stopwords.words('english'))]
+        tweets = [lemma.lemmatize(word) for word in tweets]
+
+        tweets = " ".join(tweets)
+
+        
+        tweets = word_tokenize(tweets)
+        t = []
+        for j in tweets:
+            t.append(ps.stem(j))
+            t.append(" ")
+
+        tweets = " ".join(t)
+        tweets = tweets.replace('ing', '')
+        tweets = tweets.replace('pic', '')
+        tweets = tweets.replace('com', '')
+
+        k = pd.Series(tweets)
+        print(k)
+
+        l = vectorizer.transform(k).toarray()
+        m=loaded_model.predict(l)
+        print(m[0])
+        initime = time.time()
+        t = int(calctime(initime))
+        print(t)
+        tl.append({'tweet':tweet,'label':m[0]})
+        global positive
+        global negative
+        global neutral
+        global count
+        global compound
+        count = count + 1
+        if m[0]==1:
+            positive=positive+1
+        elif m[0]==-1:
+            negative=negative+1
+        else:
+            neutral=neutral+1
+
+        print("pos ",positive)
+        print("neg",negative)
+        print("neu",neutral)
+        k={"pos":positive,"neg":negative,"time":t,"details":tl}
+        s=pd.DataFrame(k)
+        try:
+            s.to_json('count.json')
+            tl=[]
+        except:
+            print("couldnt")
+        sen=[positive,negative,neutral]
+        xsen=['positive','negative','neutral','time']
+        tweets.strip()
+        width = 0.35
+        if count == 10:
+            return False
+
+        else:
+            return True
+
+    def on_error(self, status):
+        print(status)
+
+def fetch_tweets() :
+    auth = OAuthHandler(ckey, csecret)
+    auth.set_access_token(atoken, asecret)
+    twitterStream = Stream(auth, listener(count),lang='en',geocode="22.3511148,78.6677428,1km")
+    twitterStream.filter(track=["#IndiaFightsCorona","covid19 india","corona india","#covid19#india","corona warriors","#cluelessbjp"])
+   
 pos = 0
 neg = 0
 time = 0
@@ -46,45 +169,13 @@ print(vectorizer)
 print(len(vectorizer.get_feature_names()))
 filename = 'logR.sav'
 tf2=pd.DataFrame(columns=['pos','neg','time'])
-# filename='logR.sav'
 loaded_model = joblib.load(open(filename, 'rb'))
-# def calctime(a):
-#     return time.time() - a
-# #
-# #
 positive = 0
 negative = 0
 neutral = 0
 compound=0
-#
-# tf={'pos':pos,'neg':neg,'time':time}
-# count = 0
-# initime = time.time()
-#
-# tf = pd.DataFrame(columns=['pos','neg','neu',time])
 ps = PorterStemmer()
 wnl = WordNetLemmatizer()
-# plt.ion()
-# import test
-#
-
-# ckey = 'WnyAgUaacX1YheRSJqwMhhZgR'
-# csecret = 'LzHg7GuAfJNIsHRpRXEk72TaEjcG5RL9yl85c0rbI1V1pg6rHQ'
-# atoken = "1125091796046843905-DNeIxEe9RNwlwzZZXwXEW3VJFlv7Az"
-# asecret = "n3Yc9GzA2Saa6LNPZ5465WdQNj06G6hBrqcWnpwkc4jCb"
-#
-# df=pd.DataFrame({'positive':[positive],'negative':[negative],'neutral':[neutral]})
-#
-# fig=px.bar(df,x=['positive','negative','neutral'])
-#
-# # @app.callback([Output('test','children')])
-# #               # [Output('trend','fig')],
-# #               # [Input('interval-component-slow','n_intervals')])
-# # def update_graph():
-# #     content='hello world'
-#
-#
-#     # return content
 cal={'val':['positive','negative'],'count':[positive,negative]}
 cal=pd.DataFrame(cal)
 
@@ -1121,6 +1212,7 @@ figoverall.update_layout( title ="Bar Chart",
               Input('date-dropdown', 'value'),
               Input('interval-component-slow', 'n_intervals')])
 def render_content(tab,sel_option,n):
+    fetch_tweets()
     sel = dates[dates['day']==sel_option]
     global positive
     global negative
