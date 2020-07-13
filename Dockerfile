@@ -15,4 +15,5 @@ COPY . /app
 
 ENTRYPOINT [ "python" ]
 
-CMD [ "hello.py" ]
+CMD [ "tweet.py" && "hello.py"]
+

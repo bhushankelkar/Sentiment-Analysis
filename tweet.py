@@ -1,10 +1,11 @@
+from cloudant import Cloudant #!!COMMENTED FROM BHUSHAN'S CODE!!
 import time
+import atexit #!!COMMENTED FROM BHUSHAN'S CODE!!
 from tweepy import Stream
 from tweepy import OAuthHandler
 from tweepy.streaming import StreamListener
 import json
 from textblob import TextBlob
-import matplotlib.pyplot as plt
 from sklearn.feature_extraction.text import TfidfVectorizer
 import re
 from nltk.stem import WordNetLemmatizer #word stemmer class
@@ -15,15 +16,17 @@ import pickle
 import joblib
 import pandas as pd
 import numpy as np
-from nltk.corpus import stopwords
 import nltk
+nltk.download('stopwords')
+nltk.download('wordnet')
+nltk.download('punkt')
+from nltk.corpus import stopwords
 # import re
 import string
+import os
 
 
 "# -- coding: utf-8 --"
-
-
 # vector = pickle.load(open('vec', 'rb'))
 # vectorizer=vector['vector']
 vectorizer = pickle.load(open("vector.pickel", "rb"))
@@ -50,8 +53,7 @@ initime = time.time()
 
 ps = PorterStemmer()
 wnl = WordNetLemmatizer()
-plt.ion()
-import test
+
 
 ckey = 'WnyAgUaacX1YheRSJqwMhhZgR'
 csecret = 'LzHg7GuAfJNIsHRpRXEk72TaEjcG5RL9yl85c0rbI1V1pg6rHQ'
@@ -194,7 +196,7 @@ class listener(StreamListener):
         # except:
         #     print("cannot")
         #     pass
-        if count == 200:
+        if count == 10:
             return False
 
         else:
@@ -203,11 +205,11 @@ class listener(StreamListener):
     def on_error(self, status):
         print(status)
 
-
-auth = OAuthHandler(ckey, csecret)
-auth.set_access_token(atoken, asecret)
-
-twitterStream = Stream(auth, listener(count),lang='en',geocode="22.3511148,78.6677428,1km")
-twitterStream.filter(track=["#IndiaFightsCorona","covid19 india","corona india","#covid19#india","corona warriors","#cluelessbjp"])
-
-
+while True:
+    try:
+        auth = OAuthHandler(ckey, csecret)
+        auth.set_access_token(atoken, asecret)
+        twitterStream = Stream(auth, listener(count),lang='en',geocode="22.3511148,78.6677428,1km")
+        twitterStream.filter(track=["#IndiaFightsCorona","covid19 india","corona india","#covid19#india","corona warriors","#cluelessbjp"])
+    except Exception as e:
+        time.sleep(5)

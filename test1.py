@@ -39,13 +39,14 @@ server = app.server
 pos = 0
 neg = 0
 time = 0
+'''
 vectorizer = pickle.load(open("vector.pickel", "rb"))
 w = pickle.load(open('train', 'rb'))
 x_train=w['x_train']
 vectorizer.fit(x_train)
 print(vectorizer)
 print(len(vectorizer.get_feature_names()))
-filename = 'logR.sav'
+filename = 'logR.sav'''
 tf2=pd.DataFrame(columns=['pos','neg','time'])
 # filename='logR.sav'
 loaded_model = joblib.load(open(filename, 'rb'))
